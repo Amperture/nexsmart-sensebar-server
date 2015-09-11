@@ -1,0 +1,53 @@
+#!/usr/bin/python
+import Adafruit_BBIO.UART as uart
+import serial
+import json
+import pycurl
+from StringIO import StringIO
+
+TIME_MINUTES_TENS = [ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+TIME_MINUTES_ONES = [ ')', '!', '@', '#', '$', '%', '^', '&', '*', '(']
+TIME_HOURS_TENS   = [ 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't']
+TIME_HOURS_ONES   = [ 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T']
+TEMP_IN_TENS      = [ 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
+TEMP_IN_ONES      = [ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+TEMP_OUT_TENS     = [ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+TEMP_OUT_ONES     = [ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+
+uart.setup("UART1")
+ser=serial.Serial(port = "/dev/ttyO1", baudrate=9600)
+
+ser.close()
+ser.open()
+
+
+c = pycurl.Curl()
+buffer = StringIO()
+c.setopt(c.URL, "http://45.55.157.126/api/current_conditions")
+c.setopt(c.WRITEFUNCTION, buffer.write)
+c.perform()
+
+#print "Internet data CURL'd"
+
+body = buffer.getvalue()
+buffer.truncate(0)
+bodyjson = json.loads(body)["current_observation"]["temp_f"]
+#print "It is currently " + str(bodyjson) + " degrees Farenheit outside!"
+
+# For the breadboard test
+
+temp_Outside = TIME_MINUTES_ONES[ int(bodyjson % 10) ] + \
+        TIME_MINUTES_TENS[ int(bodyjson/10) % 10]
+#print "Temperature Commands Calculated!"
+
+
+
+# For final production
+#temp_Outside = TEMP_OUT_ONES[ int(bodyjson % 10) ] + \
+        #TEMP_OUT_TENS[ int(bodyjson/10) % 10]
+
+if ser.isOpen()
+    ser.write(temp_Outside)
+    #print "Temperature data sent to serial port!"
+    ser.close()
+    #print "Serial Port Closed"

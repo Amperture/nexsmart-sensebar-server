@@ -1,0 +1,92 @@
+#!/usr/bin/python
+
+import Adafruit_BBIO.UART as uart
+import serial
+from time import sleep
+from time import strftime as time
+import subprocess
+
+import json
+import pycurl
+from StringIO import StringIO
+
+uart.setup("UART1")
+ser=serial.Serial(port = "/dev/ttyO1", baudrate=9600)
+proc = subprocess.Popen(['hcidump --raw '], stdout=subprocess.PIPE, shell=True)
+
+ser.close()
+ser.open()
+
+TIME_MINUTES_TENS = [ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+TIME_MINUTES_ONES = [ ')', '!', '@', '#', '$', '%', '^', '&', '*', '(']
+TIME_HOURS_TENS   = [ 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't']
+TIME_HOURS_ONES   = [ 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T']
+TEMP_IN_TENS      = [ 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
+TEMP_IN_ONES      = [ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+TEMP_OUT_TENS     = [ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+TEMP_OUT_ONES     = [ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+
+temperature = 0
+#temp_Write = "1!"
+#ser.write(temp_Write)
+
+buffer = StringIO()
+c = pycurl.Curl()
+
+while True:
+    time_Minutes = TIME_MINUTES_ONES[ int(time("%M")) %10] + \
+            TIME_MINUTES_TENS[int(time("%M")) / 10]
+    time_Hours = TIME_HOURS_ONES[ int(time("%H")) %10] + \
+            TIME_HOURS_TENS[int(time("%H")) / 10]
+    c.setopt(c.URL, "http://45.55.157.126/api/current_conditions")
+    c.setopt(c.WRITEFUNCTION, buffer.write)
+    c.perform()
+
+    ''' CODE TO USE WITH PUCK, DO NOT RUN IF PUCK IS NOT ON
+
+    for x in range(0, 10):
+        puck_output = proc.stdout.readline()
+    if "84 29" in puck_output and ">" not in puck_output:
+        temperature = ((int(puck_output.split()[8], 16) << 8) \
+                + int(puck_output.split()[7], 16))/10.0
+
+        print temperature
+        temperature = (temperature*18 +320)/10
+        print temperature
+        if temperature - (int(temperature)) >= 0.5:
+            temperature = int(temperature) + 1
+        else: 
+            temperature = int(temperature)
+
+        #print temperature
+        temp_Write = TIME_MINUTES_TENS[temperature / 10] \
+                + TIME_MINUTES_ONES[(temperature) % 10]
+    '''
+    body = buffer.getvalue()
+    buffer.truncate(0)
+    bodyjson = json.loads(body)["current_observation"]["temp_f"]
+    temp_Outside = TIME_MINUTES_ONES[(int(bodyjson % 10))] + \
+            TIME_MINUTES_TENS[(int(bodyjson/10))]
+
+
+    #print time("%M %s")
+    #print time_Minutes
+    if ser.isOpen():
+        #print "Serial Open!"
+    
+        #print time_Minutes
+        #ser.write(time_Minutes)
+        sleep(0.1)
+
+        #print time_Hours
+        ser.write(time_Hours)
+        sleep(0.1)
+
+        #print temp_Write
+        #print temperature
+        #ser.write(temp_Write)
+        sleep(0.1)
+
+        #print temp_Outside
+        ser.write(temp_Outside)
+        sleep(0.1)

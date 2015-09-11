@@ -1,0 +1,53 @@
+#!/usr/bin/python
+
+import Adafruit_BBIO.UART as uart
+import serial
+from time import sleep
+from time import strftime as time
+import subprocess
+
+import json
+import pycurl
+from StringIO import StringIO
+
+uart.setup("UART1")
+ser=serial.Serial(port = "/dev/ttyO1", baudrate=9600)
+proc = subprocess.Popen(['hcidump --raw '], stdout=subprocess.PIPE, shell=True)
+
+ser.close()
+ser.open()
+
+TIME_MINUTES_TENS = [ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+TIME_MINUTES_ONES = [ ')', '!', '@', '#', '$', '%', '^', '&', '*', '(']
+TEMP_IN_TENS      = [ 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
+TEMP_IN_ONES      = [ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+
+temperature = 0
+#ser.write(temp_Write)
+
+for x in range(0, 10):
+    puck_output = proc.stdout.readline()
+    if "84 29" in puck_output and ">" not in puck_output:
+        temperature = ((int(puck_output.split()[8], 16) << 8) \
+                + int(puck_output.split()[7], 16))/10.0
+
+        temperature = (temperature*18 +320)/10
+
+        if temperature - (int(temperature)) >= 0.5:
+            temperature = int(temperature) + 1
+        else: 
+            temperature = int(temperature)
+
+        # Code for breadboard
+        temp_Write = TIME_MINUTES_TENS[temperature / 10] \
+                + TIME_MINUTES_ONES[(temperature) % 10]
+
+        # Code for final production.
+        #temp_Write = TEMP_IN_TENS[temperature / 10] \
+            #+ TEMP_IN_ONES[(temperature) % 10]
+
+if ser.isOpen():
+    ser.write(temp_Write)
+    ser.close()
+
+proc.kill()
